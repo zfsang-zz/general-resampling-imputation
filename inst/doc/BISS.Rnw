@@ -1,0 +1,178 @@
+\documentclass[a4paper]{article}
+
+
+\usepackage{graphicx}
+
+
+
+\title{Variable selection in the presence of missing data:resampling and imputation}
+\author{Zhifan Sang\\
+Yi Deng\\
+Qi Long
+}
+
+\begin{document}
+\SweaveOpts{concordance=TRUE}
+
+
+\maketitle
+\section{Introduction}
+
+      In the presence of missing data, variable selection methods need to be tailored to missing data mechanisms
+and statistical approaches used for handling missing data. We focus on the mechanism of missing
+at random and variable selection methods that can be combined with imputation. We investigate a general
+resampling approach (BISS) that combines bootstrap imputation and stability selection, the latter of
+which was developed for fully observed data. The proposed approach is general and can be applied to a
+wide range of settings. Our extensive simulation studies demonstrate that the performance of BI-SS is the
+best or close to the best and is relatively insensitive to tuning parameter values in terms of variable selection,
+compared with several existing methods for both low-dimensional and high-dimensional problems.\\
+
+In this document, we will give a short tutorial on using the functions in this
+package to conduct imputations, variable selection, and regression modeling. BISS is the main function.
+This function first performs the boostrap imputation based on mice method(mice package) and balasso method(MIHD) method on data consists of  
+outcome parameter and predictors with missing values to obtain bootstrap imputed dataset.  Then this function use lasso and stability selection with randomized lasso to conduct
+varaible selection on the bootstrap imputated datasets, and obtain selection indicators. Lastly, this function calculate selected predictor estimates. \\
+Function named detect.missing runs NA search and replace on the input matrix,and return a binary matrix of the same size, which can be used to detect the missing data pattern.\\
+
+We give a simple example of how to view the data containing the missing values in this package
+and run BISS functions under different regression family options and differet imputation options.
+
+
+\section{Example}
+
+In this package, three datasets ("\emph{gaussianData}","\emph{binaryData}","\emph{poissonData}"\\,"\emph{gaussianGeneralizedData}","\emph{gaussianHighDimensionData}") are included. We first load our datasets. 
+<<>>=
+library(BISSpkg)
+data(gaussianData)
+data(binaryData)
+data(poissonData)
+data(gaussianGeneralizedData)
+data(gaussianHighDimensionData)
+@
+
+\subsection{Gaussian data}
+    First, let's take a look at dataset named gaussianData, whose type of missing values is Gaussian.
+<<echo=TRUE,eval=TRUE>>=
+dim(gaussianData)
+gaussianData[1:20,1:6]
+@
+
+Each column represents a variable and each row stands for a subject. And \emph{gaussianData} has 100 subjects and 1001 variables, thus can be viewed as a high-dimensional data.
+<<echo=TRUE,eval=TRUE>>=
+sum(is.na(gaussianData))
+sum(is.na(gaussianData))/dim(gaussianData)[1]
+@
+42\% of them are missing their first column values. With the help of two functions in this packages, we could impute these missing values.
+
+First, we can use the method through direct use of bootstrap imputation and variable selection, i.e. \emph{BISS}.
+
+Since the variable that has missingness is Gaussian outcome, option {\tt family="gaussian"} is used to specify the certain regressionfamily type. In this case, we use bootstrap.size of 10, means we want to get 10 bootstrap imputation sets.  Here, {\tt missing.col=1} means we spefiy the first column of the data is missing.
+
+<<echo=TRUE,eval=TRUE>>=
+lr_output=BI_SS(gaussianData[,-1],gaussianData$Y,family="gaussian",link=NULL,
+                missing_col=1,MI.method="mice",BI.size=10,pi=NULL,nsteps=12)
+lr_output$BIMP[1,1:20,1:6]
+lr_output$S.FIN
+lr_output$BETA.FIN
+lr_output$S1.PROB
+lr_output$S2.PROB
+@
+In the output, there is a list of output values including Bootstrap imputated dataset{(Bimp)}, Final varaible selected indicator{(S.fin)}, final parameter estimates for the regression{(beta.fin)}, final selection probability for lasso {(S1.prob)}, final selection for variable selection indicator for stability selection with randomized lasso{(S2.prob)}
+\\
+Output row format:(row number)
+1 Direct use of linear/ generalized linear regression \\
+2 naive estimate using only complete observations and lasso \\
+3 naive estimate using only complete observations and adaptive lasso  \\
+4-8  Direct use of lasso <threshold: pct=c(0.6,0.7,0.8,0.9,1.0);>
+(the final estimate of beta using mean of beta's from the previous step, stability selection with randomized lasso) \\
+9-13 Direct use of stability selection with randomized lasso  
+(the final estimate of beta using mean of beta's from the previous step, stability selection with randomized lasso) \\
+14-18 Indirect use of lasso:  First conduct feature selection using bootstrap lasso, then rerun the regression analysis using only selected X's <threshold: pct=c(0.6,0.7,0.8,0.9,1.0);> \\
+19-23 Indirect use of stability selection with randomized lasso: alternative calculation of beta by rerun the regression analysis using only selected X's <threshold: pct=c(0.6,0.7,0.8,0.9,1.0);>
+\\
+
+
+
+
+
+\subsection{Binary data}
+Previous examples are for Gaussian data and next we will focus on the case that it is binary variable that has missing values. 
+<<echo=TRUE,eval=TRUE>>=
+dim(binaryData)
+binaryData[1:20,1:6]
+sum(is.na(binaryData))
+sum(is.na(binaryData))/dim(binaryData)[1]
+@
+Similar to \emph{gaussianData}, only first column of this dataset has missing values. The output list and format is the same as the guassian case.
+<<echo=TRUE,eval=TRUE>>=
+lg_output=BI_SS(binaryData[,-1],binaryData$Y,family="binomial",link=NULL,
+                missing_col=1,MI.method="mice",BI.size=10,pi=NULL,nsteps=12)
+lg_output$BIMP[1,1:20,1:6]
+lg_output$S.FIN
+lg_output$BETA.FIN
+lg_output$S1.PROB
+lg_output$S2.PROB
+@
+\subsection{Poisson data}
+Previous examples are for Binary data and next we will focus on the case that it is poisson variable that has missing values.
+<<echo=TRUE,eval=TRUE>>=
+dim(poissonData)
+poissonData[1:20,1:6]
+sum(is.na(poissonData))
+sum(is.na(poissonData))/dim(poissonData)[1]
+@
+Similar to \emph{gaussianData}, only first column of this dataset has missing values.  The output list and format is the same as the guassian case.
+<<echo=TRUE,eval=TRUE>>=
+po_output=BI_SS(poissonData[,-1],poissonData$Y,family="poisson",link=NULL,
+                missing_col=1,MI.method="mice",BI.size=10,pi=NULL,nsteps=12)
+po_output$BIMP[1,1:20,1:6]
+po_output$S.FIN
+po_output$BETA.FIN
+po_output$S1.PROB
+po_output$S2.PROB
+
+@
+\subsection{Gaussian data with generalized missing pattern}
+Next we will focus on the case that the data have generalized missing pattern.
+<<echo=TRUE,eval=TRUE>>=
+dim(gaussianGeneralizedData)
+gaussianGeneralizedData[1:20,1:6]
+missing=dim(gaussianGeneralizedData)[1]-sum(complete.cases(gaussianGeneralizedData))
+missing
+missing/dim(gaussianGeneralizedData)[1]
+@
+First three columns of this dataset have missing values.  The output list and format is the same as the guassian case.
+<<echo=TRUE,eval=TRUE>>=
+gg_output=BI_SS(gaussianGeneralizedData[,-1],gaussianGeneralizedData$Y,family="gaussian",
+                link=NULL,missing_col=1,MI.method="mice",BI.size=10,pi=NULL,nsteps=12)
+gg_output$BIMP[1,1:20,1:6]
+gg_output$S.FIN
+gg_output$BETA.FIN
+gg_output$S1.PROB
+gg_output$S2.PROB
+@
+
+\subsection{High dimensional gaussian data}
+Previous examples are for low dimensional data and next we will focus on the case that it is high dimensional data that have missing values.
+<<echo=TRUE,eval=TRUE>>=
+dim(gaussianHighDimensionData)
+gaussianHighDimensionData[1:20,1:6]
+sum(is.na(gaussianHighDimensionData))
+sum(is.na(gaussianHighDimensionData))/dim(gaussianHighDimensionData)[1]
+@
+Similar to \emph{gaussianData}, only first column of this dataset has missing values.  The output list and format is the same as the guassian case.
+<<echo=TRUE,eval=TRUE>>=
+h_output=BI_SS(gaussianHighDimensionData[,-1],gaussianHighDimensionData$Y,family="gaussian",
+               link=NULL,missing_col=1,MI.method="blasso",BI.size=10,pi=NULL,nsteps=12)
+h_output$BIMP[1,1:20,1:6]
+h_output$S.FIN[1:23,1:40]
+h_output$BETA.FIN[1:23,1:40]
+h_output$S1.PROB[1:40]
+h_output$S2.PROB[1:40]
+@
+
+
+\section{References}
+
+Long, Q., and Johnson, B. A. (2015). Variable selection in the presence of missing data: resampling and imputation. Biostatistics, 16(3), 596-610.
+\end{document}

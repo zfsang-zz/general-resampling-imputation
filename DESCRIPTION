@@ -1,0 +1,22 @@
+Package: BISSpkg
+Type: Package
+Title: Bootstrap Imputation with Variable Selection
+Version: 1.0
+Date: 2016-05-16
+Author: Zhifan Sang, Yi Deng, and Qi Long
+Maintainer: Zhifan Sang <zsang@emory.edu>
+Description: Bootstrap imputation through direct use of stability selection, as
+    well as Bayesian Lasso Regression. Built-in imputation models are provided for
+    continuous data (normal linear regression), binary data (logistic regression)
+    and poisson data (log-linear regression).
+Depends:
+    R (>= 3.2.0),
+    MIHD,
+    MASS, 
+    mice, 
+    parcor,
+    blasso,
+    glmnet
+License: GPL-2|GPL-3
+RoxygenNote: 5.0.1
+LazyData: true
